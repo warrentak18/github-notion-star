@@ -2,17 +2,17 @@ name: Partial Sync Notion Star
 
 on:
   schedule:
-    - cron: '0 */2 * * *'
+    - cron: '0 */12 * * *'
   workflow_dispatch:
 jobs:
   partial-sync:
     runs-on: ubuntu-latest
     environment: notion-sync
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Download cache storage of last build
-        uses: dawidd6/action-download-artifact@v2
+        uses: dawidd6/action-download-artifact@v12
         continue-on-error: true
         with:
           workflow: partial-sync.yml
@@ -21,10 +21,10 @@ jobs:
           path: .cache
 
       - name: Setup environment
-        uses: actions/setup-node@v2.2.0
+        uses: actions/setup-node@v4
         with:
           always-auth: false
-          node-version: 16.x
+          node-version: '20'
           cache: yarn
 
       - run: yarn
