@@ -1,55 +1,62 @@
-name: GitHub Stars to Notion
+name: Partial Sync Notion Star
 
 on:
   schedule:
-    - cron: '0 */12 * * *'
-  workflow_dispatch: 
+    - cron: '0 */2 * * *'
+  workflow_dispatch:
 
 jobs:
-  sync:
+  partial-sync:
     runs-on: ubuntu-latest
-    permissions: # 显式声明权限，防止下载报错
+    # 如果你的 Secrets 是直接存在 Actions Secrets 里的（而不是 Environment 里的），请注释掉下面这行
+    # environment: notion-sync 
+    
+    permissions:
       contents: read
       actions: read
-      
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4 # 升级到 v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Prepare Cache Directory
+        run: mkdir -p .cache # 关键：防止脚本读取不到文件夹报错
+
+      - name: Download cache storage of last build
+        uses: dawidd6/action-download-artifact@v2
+        continue-on-error: true
         with:
-          node-version: '20'
+          # 确保这里的文件名和当前 yml 文件名一致
+          workflow: partial-sync.yml
+          workflow_conclusion: success
+          name: notion-sync-storage
+          path: .cache
+          if_no_artifact_found: warn
+
+      - name: Setup environment
+        uses: actions/setup-node@v4 # 升级到 v4 解决 400 错误
+        with:
+          node-version: '20' # 升级到 Node 20
           cache: 'yarn'
 
       - name: Install dependencies
         run: yarn install
 
-      - name: Prepare Cache
-        run: mkdir -p .cache
-
-      # 修复点：使用更现代的下载方式，或确保指向正确
-      - name: Download last sync storage
-        uses: dawidd6/action-download-artifact@v2
-        with:
-          # 关键：此处必须是包含此 workflow 的 .yml 文件名
-          workflow: partial-sync.yml
-          name: notion-sync-storage
-          path: .cache
-          if_no_artifact_found: warn
-          # 尝试从任何结论的记录中寻找，增加容错性
-          workflow_conclusion: "" 
-
-      - name: Run Sync Script
-        run: yarn start
+      - name: Run Partial Sync
         env:
-          TOKEN_OF_GITHUB: ${{ secrets.TOKEN_OF_GITHUB }}
-          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }} 
+          # 严格匹配代码所需的变量名
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+          TOKEN_OF_GITHUB: ${{ secrets.TOKEN_OF_GITHUB }}
+          FULLSYNC_LIMIT: 2000
+          PARTIALSYNC_LIMIT: 10
+          REPO_TOPICS_LIMIT: 50
+        run: yarn start # 建议统一使用 yarn start
 
-      - name: Upload sync storage
+      - name: Upload artifact
         if: success()
-        uses: actions/upload-artifact@v4 # 使用最新的 v4 版本
+        uses: actions/upload-artifact@v4 # 升级到 v4
         with:
           name: notion-sync-storage
           path: .cache
+          retention-days: 1 # 缓存保留 1 天即可，节省空间
