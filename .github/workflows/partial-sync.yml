@@ -2,55 +2,54 @@ name: Partial Sync Notion Star
 
 on:
   schedule:
+    # 每 2 小时运行一次
     - cron: '0 */12 * * *'
   workflow_dispatch:
 
 jobs:
   partial-sync:
     runs-on: ubuntu-latest
-    # 删除了 environment: notion-sync，解决 Secret 读取不到的问题
-
+    # 确保您在 GitHub Repo Settings -> Environments 中创建了名为 'notion-sync' 的环境
+    environment: notion-sync
+    
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 解决 ENOENT 报错：即使没下载到缓存，也创建一个空文件夹
-      - name: Create Cache Dir
-        run: mkdir -p .cache
-
-      - name: Download cache storage
-        uses: dawidd6/action-download-artifact@v2
+      - name: Download cache storage of last build
+        uses: dawidd6/action-download-artifact@v3
         continue-on-error: true
         with:
           workflow: partial-sync.yml
           workflow_conclusion: success
           name: notion-sync-storage
           path: .cache
-          if_no_artifact_found: warn
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 18 # 建议升级到 Node 18 或 20，Node 16 已停止维护
           cache: 'yarn'
 
       - name: Install dependencies
-        run: yarn install
+        run: yarn install --frozen-lockfile
 
       - name: Run Partial Sync
         env:
-          # 确保这三个名字和你在 Settings 里的 Secret 名字一模一样
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
           TOKEN_OF_GITHUB: ${{ secrets.TOKEN_OF_GITHUB }}
           FULLSYNC_LIMIT: 2000
           PARTIALSYNC_LIMIT: 10
           REPO_TOPICS_LIMIT: 50
-        run: yarn start
+        run: npm start
 
-      - name: Upload artifact
-        if: success()
+      - name: Upload updated cache
         uses: actions/upload-artifact@v4
         with:
           name: notion-sync-storage
           path: .cache
+          # 设置较短的保留时间（可选），因为每次运行都会生成新的
+          retention-days: 7
+          # 如果已存在同名 artifact，v4 会直接报错，这里通过逻辑覆盖或清理
+          overwrite: true
