@@ -33,7 +33,7 @@ jobs:
         uses: dawidd6/action-download-artifact@v2
         with:
           # 关键：此处必须是包含此 workflow 的 .yml 文件名
-          workflow: sync.yml 
+          workflow: partial-sync.yml
           name: notion-sync-storage
           path: .cache
           if_no_artifact_found: warn
