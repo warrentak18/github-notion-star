@@ -1,10 +1,9 @@
-name: Scheduled Sync (With Unstar Support)
+name: Scheduled Sync
 
 on:
   schedule:
-    # 每天每 6 小时运行一次 (UTC 时间)
     - cron: '0 */12 * * *'
-  workflow_dispatch: # 允许手动触发
+  workflow_dispatch: 
 
 jobs:
   sync:
@@ -22,7 +21,11 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
-      # 解决你之前的报错：如果没有找到上一次的缓存，不中断任务
+      # 创建缓存目录，防止脚本因为找不到文件夹而报错
+      - name: Ensure cache directory exists
+        run: mkdir -p .cache
+
+      # 尝试下载上次的缓存
       - name: Download last sync storage
         uses: dawidd6/action-download-artifact@v2
         with:
@@ -34,12 +37,13 @@ jobs:
       - name: Run Sync Script
         run: yarn start
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          # 关键：检查你的 Secrets 名字是否对应
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          NOTION_API_KEY: ${{ secrets.NOTION_TOKEN }} 
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
 
-      # 同步完成后，上传最新的缓存供下次使用
       - name: Upload sync storage
+        if: success() # 只有成功同步才更新缓存
         uses: actions/upload-artifact@v4
         with:
           name: notion-sync-storage
