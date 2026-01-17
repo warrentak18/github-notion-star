@@ -2,12 +2,16 @@ name: GitHub Stars to Notion
 
 on:
   schedule:
-    - cron: '0 */12 * * *' # 每 6 小时运行一次
-  workflow_dispatch:      # 支持手动触发
+    - cron: '0 */12 * * *'
+  workflow_dispatch: 
 
 jobs:
   sync:
     runs-on: ubuntu-latest
+    permissions: # 显式声明权限，防止下载报错
+      contents: read
+      actions: read
+      
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,26 +28,28 @@ jobs:
       - name: Prepare Cache
         run: mkdir -p .cache
 
+      # 修复点：使用更现代的下载方式，或确保指向正确
       - name: Download last sync storage
         uses: dawidd6/action-download-artifact@v2
         with:
-          # 注意：这里要改成你当前 workflow 的文件名，比如 sync.yml
+          # 关键：此处必须是包含此 workflow 的 .yml 文件名
           workflow: sync.yml 
           name: notion-sync-storage
           path: .cache
-          if_no_artifact_found: warn 
+          if_no_artifact_found: warn
+          # 尝试从任何结论的记录中寻找，增加容错性
+          workflow_conclusion: "" 
 
       - name: Run Sync Script
         run: yarn start
         env:
-          # 映射你仓库中的 Secrets 到脚本需要的变量名
           TOKEN_OF_GITHUB: ${{ secrets.TOKEN_OF_GITHUB }}
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }} 
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
 
       - name: Upload sync storage
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4 # 使用最新的 v4 版本
         with:
           name: notion-sync-storage
           path: .cache
