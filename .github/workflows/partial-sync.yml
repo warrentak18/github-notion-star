@@ -8,26 +8,21 @@ on:
 jobs:
   partial-sync:
     runs-on: ubuntu-latest
-    # 移除 environment: notion-sync，直接使用全局 Actions Secrets
-    
-    permissions:
-      contents: read
-      actions: read
+    # 删除了 environment: notion-sync，解决 Secret 读取不到的问题
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 解决 ENOENT 报错：确保 .cache 目录存在
-      - name: Prepare Cache Directory
+      # 解决 ENOENT 报错：即使没下载到缓存，也创建一个空文件夹
+      - name: Create Cache Dir
         run: mkdir -p .cache
 
-      - name: Download cache storage of last build
+      - name: Download cache storage
         uses: dawidd6/action-download-artifact@v2
         continue-on-error: true
         with:
-          # 必须确保这个名字和当前文件名完全一致
-          workflow: partial-sync.yml 
+          workflow: partial-sync.yml
           workflow_conclusion: success
           name: notion-sync-storage
           path: .cache
@@ -44,7 +39,7 @@ jobs:
 
       - name: Run Partial Sync
         env:
-          # 映射变量名，确保 Secrets 中的名字正确
+          # 确保这三个名字和你在 Settings 里的 Secret 名字一模一样
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
           TOKEN_OF_GITHUB: ${{ secrets.TOKEN_OF_GITHUB }}
@@ -59,4 +54,3 @@ jobs:
         with:
           name: notion-sync-storage
           path: .cache
-          retention-days: 7
