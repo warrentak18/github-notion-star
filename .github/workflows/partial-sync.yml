@@ -2,37 +2,33 @@ name: Partial Sync Notion Star
 
 on:
   schedule:
-    # 每 2 小时运行一次
-    - cron: '0 */12 * * *'
+    - cron: '0 */2 * * *'
   workflow_dispatch:
 
 jobs:
   partial-sync:
     runs-on: ubuntu-latest
-    # 确保您在 GitHub Repo Settings -> Environments 中创建了名为 'notion-sync' 的环境
     environment: notion-sync
     
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download cache storage of last build
-        uses: dawidd6/action-download-artifact@v3
+      - name: Download last build cache
+        uses: actions/download-artifact@v4
         continue-on-error: true
         with:
-          workflow: partial-sync.yml
-          workflow_conclusion: success
           name: notion-sync-storage
           path: .cache
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18 # 建议升级到 Node 18 或 20，Node 16 已停止维护
+          node-version: 20
           cache: 'yarn'
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install
 
       - name: Run Partial Sync
         env:
@@ -49,7 +45,5 @@ jobs:
         with:
           name: notion-sync-storage
           path: .cache
-          # 设置较短的保留时间（可选），因为每次运行都会生成新的
-          retention-days: 7
-          # 如果已存在同名 artifact，v4 会直接报错，这里通过逻辑覆盖或清理
+          retention-days: 1 # 节省存储空间，只需保留最后一次的状态
           overwrite: true
