@@ -14,12 +14,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download last build cache
-        uses: actions/download-artifact@v4
-        continue-on-error: true
+      # 使用 Cache 动作替代 Artifact，专门用于跨运行同步数据
+      - name: Restore sync cache
+        uses: actions/cache@v4
         with:
-          name: notion-sync-storage
           path: .cache
+          # 使用 key 来匹配缓存，如果 key 不变则复用，如果变了则存为新缓存
+          key: notion-sync-${{ github.run_id }}
+          # 关键：如果上面的 key 没中，就去找最近的以 notion-sync- 开头的缓存
+          restore-keys: |
+            notion-sync-
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -40,10 +44,4 @@ jobs:
           REPO_TOPICS_LIMIT: 50
         run: npm start
 
-      - name: Upload updated cache
-        uses: actions/upload-artifact@v4
-        with:
-          name: notion-sync-storage
-          path: .cache
-          retention-days: 1 # 节省存储空间，只需保留最后一次的状态
-          overwrite: true
+      # 注意：actions/cache 会在 Job 结束时自动对比并上传 .cache 目录，无需手动 upload
